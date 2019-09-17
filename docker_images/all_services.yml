@@ -1,0 +1,79 @@
+version: '3'
+
+services:
+    neo4j-apoc:
+        build:
+            context: ..
+            dockerfile: docker_images/neo4j_apoc
+        environment:
+            - NEO4J_AUTH=neo4j/password
+            - dbms.connectors.default_listen_address=0.0.0.0
+            - NEO4J_CACHE_MEMORY=512M
+            - NEO4J_HEAP_MEMORY=512M
+        ports:
+            - 7474:7474
+            - 7687:7687
+        container_name: neo4j-apoc
+        restart: always
+        volumes:
+            - "$HOME/data:/data"
+            - "$HOME/logs:/logs"
+        networks:
+          - app_net
+
+    rabbitmq-server:
+        image: rabbitmq:3-management
+        environment:
+            - RABBITMQ_DEFAULT_USER=user
+            - RABBITMQ_DEFAULT_PASS=password
+        ports:
+            - 15671:15671
+            - 15672:15672
+            - 4369:4369
+            - 5671:5671
+            - 5672:5672
+            - 25672:25672
+        container_name: rabbitmq-server
+        restart: always
+        networks:
+          - app_net
+
+    celery-beat:
+        build:
+            context: ..
+            dockerfile: docker_images/python_celery
+        environment:
+            - RABBITMQ_SERVER=rabbitmq-server
+            - NEO4J_SERVER=neo4j-apoc
+        container_name: celery-beat
+        restart: always
+        networks:
+          - app_net
+        depends_on:
+          - rabbitmq-server
+          - neo4j-apoc
+        working_dir: /usr/src/app
+        command: [ "/usr/local/bin/celery", "-A", "celery_worker.beat_manager", "beat", "--loglevel=info" ]
+
+    celery-worker:
+        build:
+            context: ..
+            dockerfile: docker_images/python_celery
+        environment:
+            - RABBITMQ_SERVER=rabbitmq-server
+            - NEO4J_SERVER=neo4j-apoc
+        container_name: celery-worker
+        restart: always
+        networks:
+          - app_net
+        depends_on:
+          - rabbitmq-server
+          - neo4j-apoc
+        working_dir: /usr/src/app
+        command: [ "/usr/local/bin/celery", "-A", "celery_worker", "worker", "--loglevel=info" ]
+
+networks:
+    app_net:
+        driver: bridge
+
+

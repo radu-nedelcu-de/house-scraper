@@ -1,0 +1,7 @@
+.idea
+results.json
+results.html
+celerybeat-schedule.db
+__pycache__
+house_hunter.zip
+venv

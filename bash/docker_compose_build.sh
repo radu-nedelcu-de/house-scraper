@@ -1,0 +1,1 @@
+docker-compose -f ./docker_images/all_services.yml build
